@@ -13,6 +13,7 @@ static shared_mutex_t *i2c0Mutex = NULL;
 static shared_mutex_t *spi0Mutex = NULL;
 
 // mcp23017 (on i2c0)
+static int mcp23017_node_searched = 0;
 static struct wiringPiNodeStruct *mcp23017_node = NULL;
 static int mcp23017_pin_base = 100;
 static size_t mcp23017_data_len = sizeof(unsigned int /*data2*/) + sizeof(unsigned int /*data3*/);
@@ -41,7 +42,7 @@ void i2c0Lock() {
 	if (!i2c0Mutex) {
 		i2c0_mutex_init();
 	}
-	if (!mcp23017_node) {
+	if (!mcp23017_node && !mcp23017_node_searched) {
 		mcp23017_node = wiringPiFindNode(mcp23017_pin_base);
 	}
 	if (!usingI2C0Mutex) {
@@ -60,12 +61,15 @@ void i2c0Lock() {
 
 void i2c0Unlock() {
 	if (usingI2C0Mutex) {
-		if (!mcp23017_node) {
+		if (!mcp23017_node && !mcp23017_node_searched) {
 			mcp23017_node = wiringPiFindNode(mcp23017_pin_base);
+			mcp23017_node_searched = 1;
 		}
 
 		// store shared data
-		memcpy(i2c0Mutex->data, &mcp23017_node->data2, mcp23017_data_len);
+		if (mcp23017_node) {
+			memcpy(i2c0Mutex->data, &mcp23017_node->data2, mcp23017_data_len);
+		}
 		*i2c0Mutex->data_init = 1;
 
 		pthread_mutex_unlock(i2c0Mutex->ptr);
