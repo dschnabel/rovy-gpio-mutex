@@ -45,17 +45,15 @@ void i2c0Lock() {
 	if (!mcp23017_node && !mcp23017_node_searched) {
 		mcp23017_node = wiringPiFindNode(mcp23017_pin_base);
 	}
-	if (!usingI2C0Mutex) {
-		pthread_mutex_lock(i2c0Mutex->ptr);
-		usingI2C0Mutex = 1;
+	pthread_mutex_lock(i2c0Mutex->ptr);
+	usingI2C0Mutex = 1;
 
-		// load shared data
-		if (pid != *i2c0Mutex->pid) {
-			if (*i2c0Mutex->data_init && mcp23017_node) {
-				memcpy(&mcp23017_node->data2, i2c0Mutex->data, mcp23017_data_len);
-			}
-			*i2c0Mutex->pid = pid;
+	// load shared data
+	if (pid != *i2c0Mutex->pid) {
+		if (*i2c0Mutex->data_init && mcp23017_node) {
+			memcpy(&mcp23017_node->data2, i2c0Mutex->data, mcp23017_data_len);
 		}
+		*i2c0Mutex->pid = pid;
 	}
 }
 
@@ -72,8 +70,8 @@ void i2c0Unlock() {
 		}
 		*i2c0Mutex->data_init = 1;
 
-		pthread_mutex_unlock(i2c0Mutex->ptr);
 		usingI2C0Mutex = 0;
+		pthread_mutex_unlock(i2c0Mutex->ptr);
 	}
 }
 
@@ -87,7 +85,7 @@ void spi0Lock() {
 
 void spi0Unlock() {
 	if (usingSPI0Mutex) {
-		pthread_mutex_unlock(spi0Mutex->ptr);
 		usingSPI0Mutex = 0;
+		pthread_mutex_unlock(spi0Mutex->ptr);
 	}
 }
