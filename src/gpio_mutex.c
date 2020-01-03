@@ -59,6 +59,8 @@ void i2c0Lock() {
 
 void i2c0Unlock() {
 	if (usingI2C0Mutex) {
+		usingI2C0Mutex = 0;
+
 		if (!mcp23017_node && !mcp23017_node_searched) {
 			mcp23017_node = wiringPiFindNode(mcp23017_pin_base);
 			mcp23017_node_searched = 1;
@@ -70,7 +72,6 @@ void i2c0Unlock() {
 		}
 		*i2c0Mutex->data_init = 1;
 
-		usingI2C0Mutex = 0;
 		pthread_mutex_unlock(i2c0Mutex->ptr);
 	}
 }
