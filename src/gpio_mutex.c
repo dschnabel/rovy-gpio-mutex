@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <wiringpi/wiringPi.h>
 
@@ -11,6 +12,8 @@ static pid_t pid;
 // mutexes
 static shared_mutex_t *i2c0Mutex = NULL;
 static shared_mutex_t *spi0Mutex = NULL;
+static pthread_mutex_t i2c0UnlockMutex = PTHREAD_MUTEX_INITIALIZER; // @suppress("Invalid arguments")
+static pthread_mutex_t spi0UnlockMutex = PTHREAD_MUTEX_INITIALIZER; // @suppress("Invalid arguments")
 
 // mcp23017 (on i2c0)
 static int mcp23017_node_searched = 0;
@@ -45,7 +48,12 @@ void i2c0Lock() {
 	if (!mcp23017_node && !mcp23017_node_searched) {
 		mcp23017_node = wiringPiFindNode(mcp23017_pin_base);
 	}
-	pthread_mutex_lock(i2c0Mutex->ptr);
+	while (pthread_mutex_lock(i2c0Mutex->ptr) == EOWNERDEAD) {
+		// the owning process of the lock has died without unlocking, so clean up
+		pthread_mutex_consistent(i2c0Mutex->ptr);
+		pthread_mutex_unlock(i2c0Mutex->ptr);
+		delay(50);
+	}
 	usingI2C0Mutex = 1;
 
 	// load shared data
@@ -58,6 +66,7 @@ void i2c0Lock() {
 }
 
 void i2c0Unlock() {
+	pthread_mutex_lock(&i2c0UnlockMutex); // for multiple threads calling into i2c0Unlock()
 	if (usingI2C0Mutex) {
 		usingI2C0Mutex = 0;
 
@@ -74,19 +83,27 @@ void i2c0Unlock() {
 
 		pthread_mutex_unlock(i2c0Mutex->ptr);
 	}
+	pthread_mutex_unlock(&i2c0UnlockMutex);
 }
 
 void spi0Lock() {
 	if (!spi0Mutex) {
 		spi0_mutex_init();
 	}
-	pthread_mutex_lock(spi0Mutex->ptr);
+	while (pthread_mutex_lock(spi0Mutex->ptr) == EOWNERDEAD) {
+		// the owning process of the lock has died without unlocking, so clean up
+		pthread_mutex_consistent(spi0Mutex->ptr);
+		pthread_mutex_unlock(spi0Mutex->ptr);
+		delay(50);
+	}
 	usingSPI0Mutex = 1;
 }
 
 void spi0Unlock() {
+	pthread_mutex_lock(&spi0UnlockMutex); // for multiple threads calling into spi0Unlock()
 	if (usingSPI0Mutex) {
 		usingSPI0Mutex = 0;
 		pthread_mutex_unlock(spi0Mutex->ptr);
 	}
+	pthread_mutex_unlock(&spi0UnlockMutex);
 }

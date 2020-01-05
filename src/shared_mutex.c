@@ -95,6 +95,10 @@ shared_mutex_t shared_mutex_init(char *name, size_t data_len) {
 			perror("pthread_mutexattr_setpshared");
 			return mutex;
 		}
+		if (pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST)) {
+			perror("pthread_mutexattr_setrobust");
+			return mutex;
+		}
 		if (pthread_mutex_init(mutex_ptr, &attr)) {
 			perror("pthread_mutex_init");
 			return mutex;
